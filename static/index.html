@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSLC Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #1e1e2e;
+            --bg-sidebar: #181825;
+            --bg-card: #252536;
+            --bg-hover: #313244;
+            --border: #45475a;
+            --text: #cdd6f4;
+            --text-dim: #6c7086;
+            --accent: #89b4fa;
+            --green: #a6e3a1;
+            --red: #f38ba8;
+            --yellow: #f9e2af;
+            --peach: #fab387;
+            --surface: #313244;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-dark); color: var(--text); height: 100vh; display: flex; }
+        
+        /* Sidebar */
+        .sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+        .sidebar-header h1 { font-size: 18px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .sidebar-header h1::before { content: '🐳'; font-size: 24px; }
+        .nav { flex: 1; padding: 10px; overflow-y: auto; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; cursor: pointer; color: var(--text-dim); transition: all 0.2s; margin-bottom: 4px; }
+        .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+        .nav-item.active { background: var(--accent); color: var(--bg-dark); }
+        .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .nav-section { font-size: 11px; text-transform: uppercase; color: var(--text-dim); padding: 20px 16px 8px; letter-spacing: 1px; }
+        .nav-badge { margin-left: auto; background: var(--surface); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+        .nav-item.active .nav-badge { background: rgba(0,0,0,0.2); }
+        
+        /* Main */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); }
+        .header-title { font-size: 20px; font-weight: 600; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .content { flex: 1; overflow-y: auto; padding: 24px; }
+        
+        /* Search */
+        .search-box { display: flex; align-items: center; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; }
+        .search-box svg { width: 16px; height: 16px; color: var(--text-dim); }
+        .search-box input { background: transparent; border: none; color: var(--text); padding: 10px; font-size: 14px; width: 200px; outline: none; }
+        .search-box input::placeholder { color: var(--text-dim); }
+        
+        /* Stats */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg-card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+        .stat-icon.green { background: rgba(166,227,161,0.15); color: var(--green); }
+        .stat-icon.blue { background: rgba(137,180,250,0.15); color: var(--accent); }
+        .stat-icon.yellow { background: rgba(249,226,175,0.15); color: var(--yellow); }
+        .stat-icon.peach { background: rgba(250,179,135,0.15); color: var(--peach); }
+        .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 28px; font-weight: 700; margin-top: 8px; }
+        
+        /* Table */
+        .table-container { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .table-title { font-size: 16px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 12px 16px; text-align: left; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar); white-space: nowrap; }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        tr:hover { background: var(--bg-hover); }
+        tr:last-child td { border-bottom: none; }
+        .truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* Status */
+        .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .status.running { background: rgba(166,227,161,0.15); color: var(--green); }
+        .status.stopped { background: rgba(243,139,168,0.15); color: var(--red); }
+        .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        
+        /* Buttons */
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: var(--accent); color: var(--bg-dark); }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: var(--bg-hover); }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-success { background: var(--green); color: var(--bg-dark); }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        
+        /* Actions */
+        .actions { display: flex; gap: 4px; }
+        .icon-btn { width: 32px; height: 32px; border: none; border-radius: 6px; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+        .icon-btn.danger:hover { background: rgba(243,139,168,0.2); color: var(--red); }
+        .icon-btn.success:hover { background: rgba(166,227,161,0.2); color: var(--green); }
+        
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--bg-card); border-radius: 16px; width: 600px; max-width: 90%; max-height: 90vh; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 18px; font-weight: 600; }
+        .modal-close { width: 32px; height: 32px; border: none; border-radius: 6px; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: var(--bg-hover); }
+        .modal-body { padding: 24px; overflow-y: auto; max-height: 60vh; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+        
+        /* Form */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-dark); color: var(--text); font-size: 14px; transition: border-color 0.2s; }
+        .form-input:focus { outline: none; border-color: var(--accent); }
+        .form-input::placeholder { color: var(--text-dim); }
+        textarea.form-input { min-height: 80px; font-family: monospace; resize: vertical; }
+        select.form-input { cursor: pointer; }
+        
+        /* Terminal */
+        .terminal { background: #0d0d0d; border-radius: 8px; padding: 16px; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 13px; line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+        .terminal-prompt { color: var(--green); }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .tab { padding: 12px 20px; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 14px; }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        
+        /* Detail Panel */
+        .detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 550px; background: var(--bg-card); border-left: 1px solid var(--border); transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; display: flex; flex-direction: column; box-shadow: -10px 0 40px rgba(0,0,0,0.3); }
+        .detail-panel.active { transform: translateX(0); }
+        .detail-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .detail-content { flex: 1; overflow-y: auto; padding: 20px; }
+        .detail-section { margin-bottom: 24px; }
+        .detail-section h3 { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .detail-row { display: flex; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { width: 120px; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
+        .detail-value { flex: 1; font-size: 13px; word-break: break-all; }
+        .detail-code { font-family: monospace; background: var(--bg-dark); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        
+        /* Tag */
+        .tag { padding: 3px 8px; border-radius: 4px; font-size: 11px; background: var(--surface); display: inline-block; }
+        .tag.green { background: rgba(166,227,161,0.15); color: var(--green); }
+        .tag.blue { background: rgba(137,180,250,0.15); color: var(--accent); }
+        
+        /* Dropdown */
+        .dropdown { position: relative; }
+        .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-width: 180px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; z-index: 50; }
+        .dropdown-menu.active { display: block; }
+        .dropdown-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); }
+        .dropdown-item:hover { background: var(--bg-hover); }
+        .dropdown-item.danger { color: var(--red); }
+        .dropdown-divider { height: 1px; background: var(--border); margin: 8px 0; }
+        
+        /* Empty state */
+        .empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+        .empty svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.3; }
+        .empty h3 { color: var(--text); margin-bottom: 8px; }
+        
+        /* Toast */
+        .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 10px; font-size: 14px; z-index: 2000; display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .toast.success { background: var(--green); color: var(--bg-dark); }
+        .toast.error { background: var(--red); color: white; }
+        .toast.info { background: var(--accent); color: var(--bg-dark); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+        
+        /* Keyboard shortcut hint */
+        kbd { background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-family: monospace; }
+        
+        /* Charts */
+        .chart-container { background: var(--bg-card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-bottom: 16px; }
+        .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .chart-canvas { width: 100%; height: 150px; }
+        .chart-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 12px; color: var(--text-dim); }
+        .chart-legend-item { display: flex; align-items: center; gap: 6px; }
+        .chart-legend-color { width: 12px; height: 12px; border-radius: 3px; }
+        
+        /* Settings */
+        .settings-section { background: var(--bg-card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-bottom: 16px; }
+        .settings-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+        .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-label { font-size: 14px; }
+        .settings-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+        
+        /* Toggle Switch */
+        .toggle { position: relative; width: 48px; height: 24px; cursor: pointer; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: 0.3s; }
+        .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle input:checked + .toggle-slider { background: var(--accent); }
+        .toggle input:checked + .toggle-slider::before { transform: translateX(24px); }
+        
+        /* Batch Actions Bar */
+        .batch-bar { display: none; background: var(--accent); color: var(--bg-dark); padding: 12px 20px; border-radius: 8px; margin-bottom: 16px; align-items: center; justify-content: space-between; }
+        .batch-bar.active { display: flex; }
+        .batch-info { font-size: 14px; font-weight: 500; }
+        .batch-actions { display: flex; gap: 8px; }
+        .batch-btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; background: rgba(0,0,0,0.2); color: var(--bg-dark); }
+        .batch-btn:hover { opacity: 0.8; }
+        .batch-btn.danger { background: var(--red); color: white; }
+        
+        /* Compose */
+        .compose-services { max-height: 400px; overflow-y: auto; }
+        .compose-service { background: var(--bg-dark); border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+        .compose-service-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .compose-service-title { font-weight: 600; }
+        .compose-yaml { background: #0d0d0d; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        
+        /* Light Theme */
+        body.light {
+            --bg-dark: #f5f5f5;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --bg-hover: #f0f0f0;
+            --border: #e0e0e0;
+            --text: #1a1a1a;
+            --text-dim: #666666;
+            --accent: #2563eb;
+            --green: #16a34a;
+            --red: #dc2626;
+            --yellow: #ca8a04;
+            --peach: #ea580c;
+            --surface: #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>WSLC Manager</h1>
+        </div>
+        <nav class="nav">
+            <div class="nav-item active" onclick="showPage('dashboard', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                概览
+            </div>
+            <div class="nav-section">资源管理</div>
+            <div class="nav-item" onclick="showPage('containers', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/><path d="M17 12h.01"/><path d="M7 12h.01"/></svg>
+                容器
+                <span class="nav-badge" id="navContainerCount">0</span>
+            </div>
+            <div class="nav-item" onclick="showPage('images', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                镜像
+                <span class="nav-badge" id="navImageCount">0</span>
+            </div>
+            <div class="nav-item" onclick="showPage('volumes', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>
+                卷
+                <span class="nav-badge" id="navVolumeCount">0</span>
+            </div>
+            <div class="nav-item" onclick="showPage('networks', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                网络
+                <span class="nav-badge" id="navNetworkCount">0</span>
+            </div>
+            <div class="nav-section">工具</div>
+            <div class="nav-item" onclick="showPage('terminal', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                终端
+            </div>
+            <div class="nav-item" onclick="showPage('compose', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Compose
+            </div>
+            <div class="nav-item" onclick="showPage('events', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                事件
+            </div>
+            <div class="nav-item" onclick="showPage('settings', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                设置
+            </div>
+        </nav>
+        <div style="padding: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);">
+            <div id="wsStatus" style="display:flex;align-items:center;gap:8px">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--yellow)"></span>
+                连接中...
+            </div>
+        </div>
+    </aside>
+    
+    <main class="main">
+        <!-- Dashboard -->
+        <div id="page-dashboard" class="page">
+            <div class="header">
+                <h2 class="header-title">概览</h2>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" placeholder="搜索容器、镜像..." id="globalSearch" oninput="handleSearch(this.value)">
+                    </div>
+                    <button class="btn btn-ghost" onclick="refreshAll()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        刷新
+                    </button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-icon green"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                        <div class="stat-label">运行中容器</div>
+                        <div class="stat-value" id="statRunning" style="color:var(--green)">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
+                        <div class="stat-label">总容器数</div>
+                        <div class="stat-value" id="statTotal" style="color:var(--accent)">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon yellow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+                        <div class="stat-label">镜像数量</div>
+                        <div class="stat-value" id="statImages" style="color:var(--yellow)">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon peach"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+                        <div class="stat-label">WSLC 版本</div>
+                        <div class="stat-value" id="statVersion" style="font-size:16px;color:var(--peach)">-</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <div class="table-header">
+                        <span class="table-title">最近容器</span>
+                        <button class="btn btn-primary" onclick="showRunModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            新建容器
+                        </button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>镜像</th>
+                                <th>状态</th>
+                                <th>端口</th>
+                                <th style="width:140px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardContainers"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Containers -->
+        <div id="page-containers" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">容器</h2>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" placeholder="搜索容器..." id="containerSearch" oninput="filterContainers(this.value)">
+                    </div>
+                    <button class="btn btn-ghost" onclick="refreshAll()">刷新</button>
+                    <button class="btn btn-primary" onclick="showRunModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        新建容器
+                    </button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="batch-bar" id="batchBar">
+                    <span class="batch-info"><span id="batchCount">0</span> 个容器已选择</span>
+                    <div class="batch-actions">
+                        <button class="batch-btn" onclick="batchStart()">批量启动</button>
+                        <button class="batch-btn" onclick="batchStop()">批量停止</button>
+                        <button class="batch-btn danger" onclick="batchRemove()">批量删除</button>
+                        <button class="batch-btn danger" onclick="removeAllStopped()">删除所有已停止</button>
+                        <button class="batch-btn" onclick="clearSelection()">取消选择</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"></th>
+                                <th>名称</th>
+                                <th>镜像</th>
+                                <th>状态</th>
+                                <th>端口</th>
+                                <th style="width:180px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="containerTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Images -->
+        <div id="page-images" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">镜像</h2>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" placeholder="搜索镜像..." id="imageSearch" oninput="filterImages(this.value)">
+                    </div>
+                    <button class="btn btn-ghost" onclick="refreshAll()">刷新</button>
+                    <button class="btn btn-primary" onclick="showPullModal()">拉取镜像</button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>仓库</th>
+                                <th>标签</th>
+                                <th>ID</th>
+                                <th>大小</th>
+                                <th style="width:100px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="imageTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Volumes -->
+        <div id="page-volumes" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">卷</h2>
+                <div class="header-actions">
+                    <button class="btn btn-ghost" onclick="refreshAll()">刷新</button>
+                    <button class="btn btn-primary" onclick="showCreateVolumeModal()">创建卷</button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>名称</th><th>驱动</th><th>挂载点</th><th style="width:100px">操作</th></tr></thead>
+                        <tbody id="volumeTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Networks -->
+        <div id="page-networks" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">网络</h2>
+                <div class="header-actions">
+                    <button class="btn btn-ghost" onclick="refreshAll()">刷新</button>
+                    <button class="btn btn-primary" onclick="showCreateNetworkModal()">创建网络</button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>名称</th><th>驱动</th><th>作用域</th><th style="width:100px">操作</th></tr></thead>
+                        <tbody id="networkTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Terminal -->
+        <div id="page-terminal" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">终端</h2>
+            </div>
+            <div class="content">
+                <div class="form-group">
+                    <label>选择容器</label>
+                    <select class="form-input" id="terminalContainer" style="width:300px"></select>
+                </div>
+                <div class="form-group">
+                    <label>命令</label>
+                    <div style="display:flex;gap:10px">
+                        <input class="form-input" id="terminalCommand" placeholder="输入命令..." style="flex:1" onkeypress="if(event.key==='Enter')execCommand()">
+                        <button class="btn btn-primary" onclick="execCommand()">执行</button>
+                    </div>
+                </div>
+                <div class="terminal" id="terminalOutput"><span class="terminal-prompt">$</span> 等待输入命令...</div>
+            </div>
+        </div>
+        
+        <!-- Events -->
+        <div id="page-events" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">事件日志</h2>
+                <div class="header-actions">
+                    <button class="btn btn-ghost" onclick="clearEvents()">清空</button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="terminal" id="eventsLog" style="max-height:calc(100vh - 200px)"></div>
+            </div>
+        </div>
+        
+        <!-- Compose -->
+        <div id="page-compose" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">Docker Compose</h2>
+                <div class="header-actions">
+                    <button class="btn btn-ghost" onclick="showComposeImportModal()">导入 Compose</button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="settings-section">
+                    <div class="settings-title">导出容器为 Compose 文件</div>
+                    <p style="color:var(--text-dim);margin-bottom:16px">选择容器导出为 Docker Compose YAML 格式</p>
+                    <div class="form-group">
+                        <label>选择容器</label>
+                        <select class="form-input" id="composeContainer" style="width:300px"></select>
+                    </div>
+                    <button class="btn btn-primary" onclick="exportCompose()">导出</button>
+                </div>
+                <div id="composeResult" style="display:none">
+                    <div class="settings-section">
+                        <div class="settings-title">Compose 文件内容</div>
+                        <div class="compose-yaml" id="composeYaml"></div>
+                        <button class="btn btn-ghost" onclick="copyCompose()" style="margin-top:12px">复制到剪贴板</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings -->
+        <div id="page-settings" class="page" style="display:none">
+            <div class="header">
+                <h2 class="header-title">设置</h2>
+            </div>
+            <div class="content">
+                <div class="settings-section">
+                    <div class="settings-title">外观</div>
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">深色模式</div>
+                            <div class="settings-desc">切换深色/浅色主题</div>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="themeToggle" onchange="toggleTheme()" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-title">关于</div>
+                    <div class="settings-row">
+                        <div class="settings-label">WSLC Manager</div>
+                        <div style="color:var(--text-dim)">v1.0.0</div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">WSLC 版本</div>
+                        <div style="color:var(--text-dim)" id="settingsVersion">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Detail Panel -->
+    <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+            <h3 id="detailTitle">容器详情</h3>
+            <button class="modal-close" onclick="closeDetail()">&times;</button>
+        </div>
+        <div class="detail-content">
+            <div class="tabs">
+                <div class="tab active" onclick="showDetailTab('info', this)">信息</div>
+                <div class="tab" onclick="showDetailTab('logs', this)">日志</div>
+                <div class="tab" onclick="showDetailTab('terminal', this)">终端</div>
+                <div class="tab" onclick="showDetailTab('stats', this)">监控</div>
+            </div>
+            <div id="detailInfo" class="detail-tab"></div>
+            <div id="detailLogs" class="detail-tab" style="display:none">
+                <div style="display:flex;gap:10px;margin-bottom:12px">
+                    <input class="form-input" id="logLines" type="number" value="100" style="width:100px" placeholder="行数">
+                    <button class="btn btn-ghost" onclick="refreshDetailLogs()">刷新</button>
+                </div>
+                <div class="terminal" id="detailLogsContent"></div>
+            </div>
+            <div id="detailTerminal" class="detail-tab" style="display:none">
+                <div style="display:flex;gap:10px;margin-bottom:12px">
+                    <input class="form-input" id="detailTermCmd" placeholder="输入命令..." onkeypress="if(event.key==='Enter')execDetailCommand()">
+                    <button class="btn btn-primary" onclick="execDetailCommand()">执行</button>
+                </div>
+                <div class="terminal" id="detailTermOutput"></div>
+            </div>
+            <div id="detailStats" class="detail-tab" style="display:none">
+                <div class="chart-container">
+                    <div class="chart-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        CPU 使用率
+                    </div>
+                    <canvas id="cpuChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/></svg>
+                        内存使用率
+                    </div>
+                    <canvas id="memChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="terminal" id="detailStatsContent" style="margin-top:16px">加载中...</div>
+                <button class="btn btn-ghost" onclick="refreshDetailStats()" style="margin-top:12px">刷新</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div class="modal-overlay" id="runModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">新建容器</span>
+                <button class="modal-close" onclick="closeModal('runModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>镜像 *</label>
+                    <input class="form-input" id="runImage" placeholder="docker.m.daocloud.io/library/ubuntu:latest">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>容器名称</label>
+                        <input class="form-input" id="runName" placeholder="my-container">
+                    </div>
+                    <div class="form-group">
+                        <label>端口映射</label>
+                        <input class="form-input" id="runPorts" placeholder="8080:80">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>内存限制</label>
+                        <input class="form-input" id="runMemory" placeholder="512m">
+                    </div>
+                    <div class="form-group">
+                        <label>CPU限制</label>
+                        <input class="form-input" id="runCpu" placeholder="1.0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>卷挂载</label>
+                    <input class="form-input" id="runVolumes" placeholder="/host/path:/container/path">
+                </div>
+                <div class="form-group">
+                    <label>环境变量 (每行一个)</label>
+                    <textarea class="form-input" id="runEnvs" rows="2" placeholder="KEY=value"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>启动命令</label>
+                    <input class="form-input" id="runCommand" placeholder="bash -c 'echo hello'">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('runModal')">取消</button>
+                <button class="btn btn-primary" onclick="runContainer()">启动</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="pullModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">拉取镜像</span>
+                <button class="modal-close" onclick="closeModal('pullModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>镜像地址</label>
+                    <input class="form-input" id="pullImage" placeholder="docker.m.daocloud.io/library/ubuntu:latest">
+                </div>
+                <div style="font-size:12px;color:var(--text-dim)">
+                    <p style="margin-bottom:8px">常用国内镜像源:</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <span class="tag blue" style="cursor:pointer" onclick="document.getElementById('pullImage').value='docker.m.daocloud.io/library/ubuntu:latest'">DaoCloud</span>
+                        <span class="tag blue" style="cursor:pointer" onclick="document.getElementById('pullImage').value='docker.xuanyuan.me/library/ubuntu:latest'">轩辕</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('pullModal')">取消</button>
+                <button class="btn btn-primary" onclick="pullImage()">拉取</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="volumeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">创建卷</span>
+                <button class="modal-close" onclick="closeModal('volumeModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>卷名称</label>
+                    <input class="form-input" id="volumeName" placeholder="my-volume">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('volumeModal')">取消</button>
+                <button class="btn btn-primary" onclick="createVolume()">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="networkModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">创建网络</span>
+                <button class="modal-close" onclick="closeModal('networkModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>网络名称</label>
+                    <input class="form-input" id="networkName" placeholder="my-network">
+                </div>
+                <div class="form-group">
+                    <label>驱动</label>
+                    <select class="form-input" id="networkDriver">
+                        <option value="bridge">bridge</option>
+                        <option value="host">host</option>
+                        <option value="none">none</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('networkModal')">取消</button>
+                <button class="btn btn-primary" onclick="createNetwork()">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="commitModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">提交容器为镜像</span>
+                <button class="modal-close" onclick="closeModal('commitModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>镜像名称</label>
+                    <input class="form-input" id="commitImage" placeholder="my-image:v1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('commitModal')">取消</button>
+                <button class="btn btn-primary" onclick="commitContainer()">提交</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="renameModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">重命名容器</span>
+                <button class="modal-close" onclick="closeModal('renameModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>新名称</label>
+                    <input class="form-input" id="renameNewName" placeholder="new-name">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('renameModal')">取消</button>
+                <button class="btn btn-primary" onclick="renameContainer()">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="composeImportModal">
+        <div class="modal" style="width:700px">
+            <div class="modal-header">
+                <span class="modal-title">导入 Docker Compose</span>
+                <button class="modal-close" onclick="closeModal('composeImportModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>项目名称</label>
+                    <input class="form-input" id="composeProjectName" placeholder="my-project">
+                </div>
+                <div class="form-group">
+                    <label>服务配置</label>
+                    <div id="composeServices">
+                        <div class="compose-service" data-index="0">
+                            <div class="compose-service-header">
+                                <span class="compose-service-title">服务 1</span>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>服务名称</label>
+                                    <input class="form-input compose-name" placeholder="web">
+                                </div>
+                                <div class="form-group">
+                                    <label>镜像</label>
+                                    <input class="form-input compose-image" placeholder="nginx:latest">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>端口映射</label>
+                                    <input class="form-input compose-ports" placeholder="8080:80">
+                                </div>
+                                <div class="form-group">
+                                    <label>卷挂载</label>
+                                    <input class="form-input compose-volumes" placeholder="/host:/container">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>启动命令</label>
+                                <input class="form-input compose-command" placeholder="可选">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="addComposeService()" style="margin-top:8px">+ 添加服务</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('composeImportModal')">取消</button>
+                <button class="btn btn-primary" onclick="importCompose()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws, containers = [], images = [], volumes = [], networks = [];
+        let currentDetailContainer = null, currentCommitContainer = null, currentRenameContainer = null;
+        let events = [];
+        
+        // WebSocket
+        function connect() {
+            ws = new WebSocket(`ws://${location.host}/ws`);
+            ws.onopen = () => {
+                document.getElementById('wsStatus').innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>已连接';
+                addEvent('info', 'WebSocket 已连接');
+                refreshAll();
+            };
+            ws.onclose = () => {
+                document.getElementById('wsStatus').innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:var(--red)"></span>已断开';
+                setTimeout(connect, 3000);
+            };
+            ws.onmessage = (e) => handleWsMessage(JSON.parse(e.data));
+        }
+        
+        function handleWsMessage(data) {
+            if (data.type === 'system_info') updateStats(data.data);
+            else if (data.type === 'refresh' || data.type === 'containers') {
+                if (data.containers) { containers = data.containers; renderContainers(); }
+                if (data.images) { images = data.images; renderImages(); }
+                if (data.system_info) updateStats(data.system_info);
+            } else if (data.type === 'images') { images = data.data; renderImages(); }
+            else if (data.type === 'logs') {
+                document.getElementById('detailLogsContent').textContent = data.logs || '无日志';
+            } else if (data.type === 'exec_output') {
+                const term = document.getElementById('detailTermOutput');
+                term.textContent += `\n${data.output || ''}`;
+                term.scrollTop = term.scrollHeight;
+            } else if (data.type === 'success') { toast(data.message, 'success'); addEvent('success', data.message); refreshAll(); }
+            else if (data.type === 'error') { toast(data.message, 'error'); addEvent('error', data.message); }
+        }
+        
+        function send(msg) { if (ws?.readyState === 1) ws.send(JSON.stringify(msg)); }
+        function refreshAll() { send({cmd: 'refresh'}); loadVolumes(); loadNetworks(); addEvent('info', '刷新数据'); }
+        
+        function updateStats(info) {
+            document.getElementById('statRunning').textContent = info.running_containers || 0;
+            document.getElementById('statTotal').textContent = info.container_count || 0;
+            document.getElementById('statImages').textContent = info.image_count || 0;
+            document.getElementById('statVersion').textContent = info.wslc_version || '-';
+            document.getElementById('navContainerCount').textContent = info.container_count || 0;
+            document.getElementById('navImageCount').textContent = info.image_count || 0;
+            document.getElementById('navVolumeCount').textContent = info.volume_count || 0;
+            document.getElementById('navNetworkCount').textContent = info.network_count || 0;
+        }
+        
+        function showPage(page, el) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById(`page-${page}`).style.display = '';
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el?.classList.add('active');
+        }
+        
+        // Render
+        function renderContainers(filter = '') {
+            const filtered = filter ? containers.filter(c => c.name.includes(filter) || c.image.includes(filter)) : containers;
+            const html = filtered.map(c => `
+                <tr>
+                    <td><input type="checkbox" ${selectedContainers.has(c.name) ? 'checked' : ''} onchange="toggleSelect('${c.name}', this.checked)"></td>
+                    <td><a href="#" onclick="showDetail('${c.name}');return false" style="color:var(--accent);text-decoration:none;font-weight:500">${c.name}</a></td>
+                    <td class="truncate">${c.image}</td>
+                    <td><span class="status ${c.is_running ? 'running' : 'stopped'}">${c.is_running ? '运行中' : '已停止'}</span></td>
+                    <td class="truncate" style="font-size:12px;color:var(--text-dim)">${c.ports || '-'}</td>
+                    <td>
+                        <div class="actions">
+                            ${c.is_running 
+                                ? `<button class="icon-btn" title="停止" onclick="stopContainer('${c.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg></button>`
+                                : `<button class="icon-btn success" title="启动" onclick="startContainer('${c.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg></button>`
+                            }
+                            <button class="icon-btn" title="重启" onclick="restartContainer('${c.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                            <button class="icon-btn" title="克隆" onclick="cloneContainer('${c.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                            <button class="icon-btn" title="提交为镜像" onclick="showCommitModal('${c.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></button>
+                            <button class="icon-btn" title="删除" onclick="removeContainer('${c.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('dashboardContainers').innerHTML = html || emptyHtml('暂无容器', '容器');
+            document.getElementById('containerTable').innerHTML = html || emptyHtml('暂无容器', '容器');
+            updateTerminalSelect();
+        }
+        
+        function renderImages(filter = '') {
+            const filtered = filter ? images.filter(i => i.repository.includes(filter) || i.tag.includes(filter)) : images;
+            const html = filtered.map(i => `
+                <tr>
+                    <td class="truncate" style="max-width:250px">${i.repository}</td>
+                    <td><span class="tag blue">${i.tag}</span></td>
+                    <td><span class="detail-code">${i.image_id?.substring(0,12)}</span></td>
+                    <td>${i.size}</td>
+                    <td>
+                        <button class="icon-btn danger" title="删除" onclick="removeImage('${i.repository}:${i.tag}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('imageTable').innerHTML = html || emptyHtml('暂无镜像', '镜像');
+        }
+        
+        function renderVolumes() {
+            const html = volumes.map(v => `
+                <tr>
+                    <td>${v.name}</td>
+                    <td>${v.driver}</td>
+                    <td class="truncate" style="max-width:300px;font-size:12px">${v.mountpoint}</td>
+                    <td><button class="icon-btn danger" onclick="removeVolume('${v.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+                </tr>
+            `).join('');
+            document.getElementById('volumeTable').innerHTML = html || emptyHtml('暂无卷', '卷');
+        }
+        
+        function renderNetworks() {
+            const html = networks.map(n => `
+                <tr>
+                    <td>${n.name}</td>
+                    <td><span class="tag">${n.driver}</span></td>
+                    <td>${n.scope}</td>
+                    <td>${['bridge','host','none'].includes(n.name) ? '<span style="color:var(--text-dim);font-size:12px">系统</span>' : 
+                        `<button class="icon-btn danger" onclick="removeNetwork('${n.name}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`
+                    }</td>
+                </tr>
+            `).join('');
+            document.getElementById('networkTable').innerHTML = html || emptyHtml('暂无网络', '网络');
+        }
+        
+        function emptyHtml(msg, type) {
+            return `<tr><td colspan="5"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="6" width="20" height="12" rx="2"/></svg><h3>${msg}</h3><p>点击"新建${type}"创建一个</p></div></td></tr>`;
+        }
+        
+        // Detail
+        async function showDetail(name) {
+            currentDetailContainer = name;
+            document.getElementById('detailPanel').classList.add('active');
+            document.getElementById('detailTitle').textContent = name;
+            showDetailTab('info', document.querySelector('.tabs .tab'));
+            
+            const res = await fetch(`/api/containers/${name}/inspect`);
+            const d = await res.json();
+            
+            document.getElementById('detailInfo').innerHTML = `
+                <div class="detail-section">
+                    <h3>基本信息</h3>
+                    <div class="detail-row"><div class="detail-label">ID</div><div class="detail-value"><span class="detail-code">${d.id?.substring(0,12) || '-'}</span></div></div>
+                    <div class="detail-row"><div class="detail-label">名称</div><div class="detail-value">${d.name}</div></div>
+                    <div class="detail-row"><div class="detail-label">镜像</div><div class="detail-value">${d.image}</div></div>
+                    <div class="detail-row"><div class="detail-label">状态</div><div class="detail-value"><span class="status ${d.status === 'running' ? 'running' : 'stopped'}">${d.status}</span></div></div>
+                    <div class="detail-row"><div class="detail-label">创建时间</div><div class="detail-value" style="font-size:12px">${d.created || '-'}</div></div>
+                    <div class="detail-row"><div class="detail-label">启动时间</div><div class="detail-value" style="font-size:12px">${d.started || '-'}</div></div>
+                </div>
+                <div class="detail-section">
+                    <h3>端口映射</h3>
+                    ${d.ports?.length ? d.ports.map(p => `<div class="detail-row"><div class="detail-label">${p.container_port}/${p.protocol}</div><div class="detail-value">0.0.0.0:${p.host_port}</div></div>`).join('') : '<div style="color:var(--text-dim);font-size:13px;padding:10px 0">无端口映射</div>'}
+                </div>
+                <div class="detail-section">
+                    <h3>环境变量</h3>
+                    <div class="terminal" style="max-height:150px;font-size:12px">${d.env?.join('\n') || '无'}</div>
+                </div>
+                <div class="detail-section">
+                    <h3>挂载</h3>
+                    ${d.mounts?.length ? d.mounts.map(m => `<div class="detail-row"><div class="detail-label">源</div><div class="detail-value detail-code" style="font-size:11px">${m.source}</div></div><div class="detail-row"><div class="detail-label">目标</div><div class="detail-value detail-code" style="font-size:11px">${m.destination}</div></div>`).join('') : '<div style="color:var(--text-dim);font-size:13px;padding:10px 0">无挂载</div>'}
+                </div>
+                <div class="detail-section">
+                    <h3>快捷操作</h3>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button class="btn btn-ghost btn-sm" onclick="showRenameModal('${d.name}')">重命名</button>
+                        <button class="btn btn-ghost btn-sm" onclick="cloneContainer('${d.name}')">克隆</button>
+                        <button class="btn btn-ghost btn-sm" onclick="showCommitModal('${d.name}')">提交为镜像</button>
+                    </div>
+                </div>
+            `;
+            send({cmd: 'logs', name, lines: 100});
+        }
+        
+        function showDetailTab(tab, el) {
+            document.querySelectorAll('.detail-tab').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`detail${tab.charAt(0).toUpperCase() + tab.slice(1)}`).style.display = '';
+            el?.classList.add('active');
+        }
+        
+        function closeDetail() { document.getElementById('detailPanel').classList.remove('active'); currentDetailContainer = null; }
+        
+        async function refreshDetailLogs() {
+            if (!currentDetailContainer) return;
+            const lines = document.getElementById('logLines').value;
+            send({cmd: 'logs', name: currentDetailContainer, lines: parseInt(lines) || 100});
+        }
+        
+        async function refreshDetailStats() {
+            if (!currentDetailContainer) return;
+            const res = await fetch(`/api/containers/${currentDetailContainer}/stats`);
+            const data = await res.json();
+            document.getElementById('detailStatsContent').textContent = data.stats || '无法获取统计信息';
+        }
+        
+        async function execDetailCommand() {
+            const cmd = document.getElementById('detailTermCmd').value;
+            if (!cmd || !currentDetailContainer) return;
+            const term = document.getElementById('detailTermOutput');
+            term.textContent += `\n$ ${cmd}`;
+            const res = await fetch(`/api/containers/${currentDetailContainer}/exec`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: cmd})
+            });
+            const data = await res.json();
+            term.textContent += `\n${data.output || data.error || ''}`;
+            term.scrollTop = term.scrollHeight;
+            document.getElementById('detailTermCmd').value = '';
+        }
+        
+        // Modals
+        function showRunModal() { document.getElementById('runModal').classList.add('active'); }
+        function showPullModal() { document.getElementById('pullModal').classList.add('active'); }
+        function showCreateVolumeModal() { document.getElementById('volumeModal').classList.add('active'); }
+        function showCreateNetworkModal() { document.getElementById('networkModal').classList.add('active'); }
+        function showCommitModal(name) { currentCommitContainer = name; document.getElementById('commitModal').classList.add('active'); }
+        function showRenameModal(name) { currentRenameContainer = name; document.getElementById('renameNewName').value = name; document.getElementById('renameModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        
+        // Actions
+        async function runContainer() {
+            const image = document.getElementById('runImage').value;
+            if (!image) return toast('请输入镜像', 'error');
+            const envs = document.getElementById('runEnvs').value.split('\n').filter(e => e.trim());
+            const res = await fetch('/api/containers/run', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    image, name: document.getElementById('runName').value || null,
+                    ports: document.getElementById('runPorts').value || null,
+                    volumes: document.getElementById('runVolumes').value || null,
+                    envs: envs.length ? envs : null,
+                    command: document.getElementById('runCommand').value || null
+                })
+            });
+            const data = await res.json();
+            if (data.success) { closeModal('runModal'); toast('容器已启动', 'success'); }
+            else toast(data.error, 'error');
+        }
+        
+        async function pullImage() {
+            const image = document.getElementById('pullImage').value;
+            if (!image) return toast('请输入镜像地址', 'error');
+            toast('开始拉取镜像...', 'info');
+            try {
+                const res = await fetch('/api/images/pull', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({image}) });
+                const data = await res.json();
+                if (data.success) {
+                    toast('镜像拉取完成', 'success');
+                    refreshAll();
+                } else {
+                    toast(data.error || '拉取失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误: ' + e.message, 'error');
+            }
+            closeModal('pullModal');
+        }
+        
+        async function commitContainer() {
+            const image = document.getElementById('commitImage').value;
+            if (!image || !currentCommitContainer) return;
+            const res = await fetch(`/api/containers/${currentCommitContainer}/commit`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image})
+            });
+            const data = await res.json();
+            if (data.success) { closeModal('commitModal'); toast('容器已提交为镜像', 'success'); }
+            else toast(data.error, 'error');
+        }
+        
+        async function renameContainer() {
+            const newName = document.getElementById('renameNewName').value;
+            if (!newName || !currentRenameContainer) return;
+            const res = await fetch(`/api/containers/${currentRenameContainer}/rename/${newName}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) { closeModal('renameModal'); toast('容器已重命名', 'success'); }
+            else toast(data.error, 'error');
+        }
+        
+        async function createVolume() {
+            const name = document.getElementById('volumeName').value;
+            if (!name) return;
+            await fetch('/api/volumes/create', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name}) });
+            closeModal('volumeModal'); loadVolumes(); toast('卷已创建', 'success');
+        }
+        
+        async function createNetwork() {
+            const name = document.getElementById('networkName').value;
+            if (!name) return;
+            await fetch('/api/networks/create', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, driver: document.getElementById('networkDriver').value}) });
+            closeModal('networkModal'); loadNetworks(); toast('网络已创建', 'success');
+        }
+        
+        function stopContainer(n) { send({cmd: 'stop', name: n}); }
+        function startContainer(n) { send({cmd: 'start', name: n}); }
+        function restartContainer(n) { 
+            if (confirm(`重启容器 ${n}?`)) {
+                send({cmd: 'restart', name: n});
+            }
+        }
+        function removeContainer(n) { if (confirm(`删除容器 ${n}?`)) send({cmd: 'remove', name: n}); }
+        function removeImage(i) { if (confirm(`删除镜像 ${i}?`)) fetch(`/api/images/${encodeURIComponent(i)}/remove`, {method:'DELETE'}).then(() => { toast('镜像已删除', 'success'); refreshAll(); }); }
+        function removeVolume(n) { if (confirm(`删除卷 ${n}?`)) fetch(`/api/volumes/${n}/remove`, {method:'DELETE'}).then(() => { toast('卷已删除', 'success'); loadVolumes(); }); }
+        function removeNetwork(n) { if (confirm(`删除网络 ${n}?`)) fetch(`/api/networks/${n}/remove`, {method:'DELETE'}).then(() => { toast('网络已删除', 'success'); loadNetworks(); }); }
+        
+        async function cloneContainer(name) {
+            const newName = name + '-copy-' + Date.now().toString(36);
+            toast(`正在克隆容器为 ${newName}...`, 'info');
+            const res = await fetch(`/api/containers/${name}/clone`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: newName})
+            });
+            const data = await res.json();
+            if (data.success) { toast('容器已克隆', 'success'); refreshAll(); }
+            else toast(data.error, 'error');
+        }
+        
+        async function loadVolumes() { const r = await fetch('/api/volumes'); volumes = await r.json(); renderVolumes(); }
+        async function loadNetworks() { const r = await fetch('/api/networks'); networks = await r.json(); renderNetworks(); }
+        
+        function filterContainers(v) { renderContainers(v); }
+        function filterImages(v) { renderImages(v); }
+        function handleSearch(v) { filterContainers(v); filterImages(v); }
+        
+        async function execCommand() {
+            const name = document.getElementById('terminalContainer').value;
+            const cmd = document.getElementById('terminalCommand').value;
+            if (!name || !cmd) return;
+            const res = await fetch(`/api/containers/${name}/exec`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({command: cmd}) });
+            const data = await res.json();
+            const term = document.getElementById('terminalOutput');
+            term.innerHTML += `\n<span class="terminal-prompt">$</span> ${cmd}\n${data.output || ''}`;
+            term.scrollTop = term.scrollHeight;
+            document.getElementById('terminalCommand').value = '';
+        }
+        
+        function updateTerminalSelect() {
+            const s = document.getElementById('terminalContainer');
+            if (s) s.innerHTML = containers.map(c => `<option value="${c.name}">${c.name} (${c.is_running ? '运行中' : '已停止'})</option>`).join('');
+        }
+        
+        function toast(msg, type = 'info') {
+            const t = document.createElement('div');
+            t.className = `toast ${type}`;
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', '16');
+            svg.setAttribute('height', '16');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('fill', 'none');
+            svg.setAttribute('stroke', 'currentColor');
+            svg.setAttribute('stroke-width', '2');
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M22 11.08V12a10 10 0 1 1-5.93-9.14');
+            const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('points', '22 4 12 14.01 9 11.01');
+            svg.appendChild(path);
+            svg.appendChild(polyline);
+            t.appendChild(svg);
+            t.appendChild(document.createTextNode(msg));
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+        
+        function addEvent(type, msg) {
+            const time = new Date().toLocaleTimeString();
+            events.unshift({type, msg, time});
+            if (events.length > 100) events.pop();
+            const log = document.getElementById('eventsLog');
+            if (log) {
+                const colors = {info: 'var(--accent)', success: 'var(--green)', error: 'var(--red)'};
+                const fragment = document.createDocumentFragment();
+                events.forEach(e => {
+                    const div = document.createElement('div');
+                    div.style.color = colors[e.type] || 'var(--text)';
+                    div.textContent = `[${e.time}] ${e.msg}`;
+                    fragment.appendChild(div);
+                });
+                log.innerHTML = '';
+                log.appendChild(fragment);
+            }
+        }
+        
+        function clearEvents() { events = []; document.getElementById('eventsLog').innerHTML = ''; }
+        
+        // Batch Operations
+        let selectedContainers = new Set();
+        
+        function toggleSelectAll(checked) {
+            if (checked) {
+                containers.forEach(c => selectedContainers.add(c.name));
+            } else {
+                selectedContainers.clear();
+            }
+            updateBatchBar();
+            renderContainers(document.getElementById('containerSearch')?.value || '');
+        }
+        
+        function toggleSelect(name, checked) {
+            if (checked) {
+                selectedContainers.add(name);
+            } else {
+                selectedContainers.delete(name);
+            }
+            updateBatchBar();
+        }
+        
+        function updateBatchBar() {
+            const bar = document.getElementById('batchBar');
+            const count = document.getElementById('batchCount');
+            const selectAll = document.getElementById('selectAll');
+            if (bar && count) {
+                count.textContent = selectedContainers.size;
+                bar.classList.toggle('active', selectedContainers.size > 0);
+            }
+            if (selectAll) {
+                selectAll.checked = selectedContainers.size === containers.length && containers.length > 0;
+            }
+        }
+        
+        function clearSelection() {
+            selectedContainers.clear();
+            updateBatchBar();
+            renderContainers(document.getElementById('containerSearch')?.value || '');
+        }
+        
+        async function batchStart() {
+            if (selectedContainers.size === 0) return;
+            const names = Array.from(selectedContainers);
+            toast(`正在启动 ${names.length} 个容器...`, 'info');
+            const res = await fetch('/api/containers/batch/start', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({names})
+            });
+            const data = await res.json();
+            toast(`启动完成: ${data.started} 成功, ${data.failed} 失败`, data.failed > 0 ? 'error' : 'success');
+            clearSelection();
+            refreshAll();
+        }
+        
+        async function batchStop() {
+            if (selectedContainers.size === 0) return;
+            const names = Array.from(selectedContainers);
+            toast(`正在停止 ${names.length} 个容器...`, 'info');
+            const res = await fetch('/api/containers/batch/stop', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({names})
+            });
+            const data = await res.json();
+            toast(`停止完成: ${data.stopped} 成功, ${data.failed} 失败`, data.failed > 0 ? 'error' : 'success');
+            clearSelection();
+            refreshAll();
+        }
+        
+        async function batchRemove() {
+            if (selectedContainers.size === 0) return;
+            if (!confirm(`确定删除 ${selectedContainers.size} 个容器?`)) return;
+            const names = Array.from(selectedContainers);
+            toast(`正在删除 ${names.length} 个容器...`, 'info');
+            const res = await fetch('/api/containers/batch/remove', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({names})
+            });
+            const data = await res.json();
+            toast(`删除完成: ${data.removed} 成功, ${data.failed} 失败`, data.failed > 0 ? 'error' : 'success');
+            clearSelection();
+            refreshAll();
+        }
+        
+        async function removeAllStopped() {
+            const stopped = containers.filter(c => !c.is_running);
+            if (stopped.length === 0) return toast('没有已停止的容器', 'info');
+            if (!confirm(`确定删除 ${stopped.length} 个已停止的容器?`)) return;
+            toast('正在删除所有已停止容器...', 'info');
+            const res = await fetch('/api/containers/batch/remove-stopped', { method: 'POST' });
+            const data = await res.json();
+            toast(`删除完成: ${data.removed} 成功, ${data.failed} 失败`, data.failed > 0 ? 'error' : 'success');
+            refreshAll();
+        }
+        
+        // Theme Toggle
+        function toggleTheme() {
+            const isDark = document.getElementById('themeToggle').checked;
+            document.body.classList.toggle('light', !isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+        
+        function loadTheme() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            const isDark = theme === 'dark';
+            document.getElementById('themeToggle').checked = isDark;
+            document.body.classList.toggle('light', !isDark);
+        }
+        
+        // Compose Functions
+        function showComposeImportModal() { document.getElementById('composeImportModal').classList.add('active'); }
+        
+        let composeServiceCount = 1;
+        function addComposeService() {
+            const container = document.getElementById('composeServices');
+            const div = document.createElement('div');
+            div.className = 'compose-service';
+            div.dataset.index = composeServiceCount++;
+            div.innerHTML = `
+                <div class="compose-service-header">
+                    <span class="compose-service-title">服务 ${composeServiceCount}</span>
+                    <button class="icon-btn danger" onclick="this.closest('.compose-service').remove()">删除</button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>服务名称</label>
+                        <input class="form-input compose-name" placeholder="redis">
+                    </div>
+                    <div class="form-group">
+                        <label>镜像</label>
+                        <input class="form-input compose-image" placeholder="redis:alpine">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>端口映射</label>
+                        <input class="form-input compose-ports" placeholder="6379:6379">
+                    </div>
+                    <div class="form-group">
+                        <label>卷挂载</label>
+                        <input class="form-input compose-volumes" placeholder="/data:/data">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>启动命令</label>
+                    <input class="form-input compose-command" placeholder="可选">
+                </div>
+            `;
+            container.appendChild(div);
+        }
+        
+        async function importCompose() {
+            const projectName = document.getElementById('composeProjectName').value.trim();
+            if (!projectName) return toast('请输入项目名称', 'error');
+            
+            const services = [];
+            document.querySelectorAll('.compose-service').forEach(el => {
+                const name = el.querySelector('.compose-name').value.trim();
+                const image = el.querySelector('.compose-image').value.trim();
+                if (name && image) {
+                    services.push({
+                        name,
+                        image,
+                        ports: el.querySelector('.compose-ports').value.trim() || null,
+                        volumes: el.querySelector('.compose-volumes').value.trim() || null,
+                        command: el.querySelector('.compose-command').value.trim() || null
+                    });
+                }
+            });
+            
+            if (services.length === 0) return toast('请至少添加一个服务', 'error');
+            
+            toast('正在导入 Compose...', 'info');
+            const res = await fetch('/api/compose/import', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: projectName, services})
+            });
+            const data = await res.json();
+            if (data.success) {
+                closeModal('composeImportModal');
+                toast(`已导入 ${data.results.length} 个服务`, 'success');
+                refreshAll();
+            } else {
+                toast(data.error || '导入失败', 'error');
+            }
+        }
+        
+        async function exportCompose() {
+            const name = document.getElementById('composeContainer').value;
+            if (!name) return toast('请选择容器', 'error');
+            
+            const res = await fetch(`/api/containers/${name}/compose`);
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('composeYaml').textContent = data.compose;
+                document.getElementById('composeResult').style.display = '';
+            } else {
+                toast(data.error || '导出失败', 'error');
+            }
+        }
+        
+        function copyCompose() {
+            const text = document.getElementById('composeYaml').textContent;
+            navigator.clipboard.writeText(text).then(() => toast('已复制到剪贴板', 'success'));
+        }
+        
+        function updateComposeSelect() {
+            const s = document.getElementById('composeContainer');
+            if (s) s.innerHTML = containers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        }
+        
+        // Charts
+        let cpuData = [], memData = [];
+        const maxDataPoints = 30;
+        
+        function drawChart(canvasId, data, color, label) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth;
+            const height = canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (data.length < 2) return;
+            
+            const max = Math.max(...data, 100);
+            const step = width / (maxDataPoints - 1);
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = height - (height * i / 4);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // Draw line
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            data.forEach((val, i) => {
+                const x = i * step;
+                const y = height - (val / max * height);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            
+            // Draw fill
+            const fillColor = color.replace(')', ',0.1)').replace('rgb', 'rgba');
+            ctx.fillStyle = fillColor;
+            ctx.beginPath();
+            data.forEach((val, i) => {
+                const x = i * step;
+                const y = height - (val / max * height);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.lineTo((data.length - 1) * step, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function updateCharts() {
+            drawChart('cpuChart', cpuData, 'rgb(137,180,250)', 'CPU');
+            drawChart('memChart', memData, 'rgb(166,227,161)', 'Memory');
+        }
+        
+        async function refreshDetailStats() {
+            if (!currentDetailContainer) return;
+            const res = await fetch(`/api/containers/${currentDetailContainer}/stats`);
+            const data = await res.json();
+            document.getElementById('detailStatsContent').textContent = data.stats || '无法获取统计信息';
+            
+            // Parse stats for charts
+            if (data.stats) {
+                const lines = data.stats.split('\n');
+                if (lines.length > 1) {
+                    const parts = lines[1].split(/\s+/);
+                    if (parts.length >= 2) {
+                        const cpu = parseFloat(parts[1]) || 0;
+                        cpuData.push(cpu);
+                        if (cpuData.length > maxDataPoints) cpuData.shift();
+                    }
+                    if (parts.length >= 4) {
+                        const memStr = parts[3];
+                        const mem = parseFloat(memStr) || 0;
+                        memData.push(mem);
+                        if (memData.length > maxDataPoints) memData.shift();
+                    }
+                    updateCharts();
+                }
+            }
+        }
+        
+        // Initialize
+        loadTheme();
+        
+        // Update compose select when containers change
+        const _origRenderContainers = window.renderContainers;
+        window.renderContainers = function(filter) {
+            _origRenderContainers(filter);
+            updateComposeSelect();
+        };
+        
+        connect();
+    </script>
+</body>
+</html>
