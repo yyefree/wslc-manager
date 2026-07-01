@@ -17,7 +17,7 @@ Docker Desktop 风格的 WSLC (Windows Subsystem for Linux Containers) 管理工
 
 ## 截图
 
-![Dashboard](https://via.placeholder.com/800x450/1e1e2e/89b4fa?text=WSLC+Manager)
+![Dashboard](docs/screenshot.png)
 
 ## 安装
 
@@ -25,7 +25,7 @@ Docker Desktop 风格的 WSLC (Windows Subsystem for Linux Containers) 管理工
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-username/wslc-manager.git
+git clone https://github.com/yyefree/wslc-manager.git
 cd wslc-manager
 
 # 编译
@@ -94,6 +94,12 @@ cargo run
 # 构建发布版本
 cargo build --release
 ```
+
+## 赞助
+
+如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
+
+![微信赞助](sponsor.png)
 
 ## 许可证
 
